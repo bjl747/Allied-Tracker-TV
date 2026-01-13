@@ -260,26 +260,44 @@
             useEffect(() => {
                 const table = tableBodyRef.current;
                 if (!table) return;
+                
                 let scrollInterval;
+                let startTimeout;
+                let restartTimeout;
+                let bottomTimeout;
+
                 const startScrolling = () => {
+                    // Start the scroll loop
                     scrollInterval = setInterval(() => {
-                        if (table.scrollTop + table.clientHeight >= table.scrollHeight) {
-                            // Pause at bottom then reset
+                        // Check if at bottom (allow 1px buffer)
+                        if (table.scrollTop + table.clientHeight >= table.scrollHeight - 1) {
                             clearInterval(scrollInterval);
-                            setTimeout(() => {
+                            
+                            // Pause at bottom for 5 seconds
+                            bottomTimeout = setTimeout(() => {
                                 table.scrollTo({ top: 0, behavior: 'smooth' });
-                                setTimeout(startScrolling, 2000); // Wait at top
-                            }, 3000);
+                                
+                                // Wait 10 seconds at the top before scrolling again
+                                restartTimeout = setTimeout(startScrolling, 10000);
+                            }, 5000);
                         } else {
                             table.scrollTop += 1;
                         }
-                    }, 50); // Speed
+                    }, 50); // Speed: ~20px/sec
                 };
-                // Only scroll if content overflows
+
+                // Only enable auto-scroll if content actually overflows
                 if (table.scrollHeight > table.clientHeight) {
-                    setTimeout(startScrolling, 3000);
+                    // Initial wait of 10 seconds before first scroll
+                    startTimeout = setTimeout(startScrolling, 10000);
                 }
-                return () => clearInterval(scrollInterval);
+
+                return () => {
+                    clearInterval(scrollInterval);
+                    clearTimeout(startTimeout);
+                    clearTimeout(restartTimeout);
+                    clearTimeout(bottomTimeout);
+                };
             }, [divisionData]);
 
             const teamStandings = useMemo(() => {
