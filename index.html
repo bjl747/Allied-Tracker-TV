@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, initial-scale=1.0, user-scalable=no">
+    <title>Allied Master Tracker - Live Display</title>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* TV OPTIMIZATIONS */
+        body { 
+            overflow: hidden; /* No scrolling allowed */
+            background-color: #020617; /* Slate-950 */
+            cursor: none; /* Hide mouse cursor */
+        }
+        .progress-stripe { background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent); background-size: 1rem 1rem; }
+    </style>
+</head>
+<body class="text-slate-100 font-sans antialiased">
+    <div id="root" class="h-screen w-screen p-8 flex flex-col gap-6"></div>
+
+    <script type="text/babel">
+        // --- CONFIGURATION ---
+        const TEAMS = [
+            { id: 'default-cardio-app', name: 'Cardio', color: 'red', hex: '#ef4444', bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/50' },
+            { id: 'team-beau-tracker', name: 'Team Beau', color: 'blue', hex: '#3b82f6', bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/50' },
+            { id: 'team-jerry-tracker', name: 'Team Jerry', color: 'emerald', hex: '#10b981', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/50' },
+            { id: 'default-therapy-app', name: 'Therapy', color: 'purple', hex: '#a855f7', bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/50' }
+        ];
+
+        const FISCAL_PERIODS = [
+            { id: 'Period 1', label: 'Period 1', start: new Date('2025-12-28'), end: new Date('2026-01-24') },
+            { id: 'Period 2', label: 'Period 2', start: new Date('2026-01-25'), end: new Date('2026-02-21') },
+            { id: 'Period 3', label: 'Period 3', start: new Date('2026-02-22'), end: new Date('2026-03-28') },
+            { id: 'Period 4', label: 'Period 4', start: new Date('2026-03-29'), end: new Date('2026-04-25') },
+            { id: 'Period 5', label: 'Period 5', start: new Date('2026-04-26'), end: new Date('2026-05-23') },
+            { id: 'Period 6', label: 'Period 6', start: new Date('2026-05-24'), end: new Date('2026-06-27') },
+            { id: 'Period 7', label: 'Period 7', start: new Date('2026-06-28'), end: new Date('2026-07-25') },
+            { id: 'Period 8', label: 'Period 8', start: new Date('2026-07-26'), end: new Date('2026-08-22') },
+            { id: 'Period 9', label: 'Period 9', start: new Date('2026-08-23'), end: new Date('2026-09-26') },
+            { id: 'Period 10', label: 'Period 10', start: new Date('2026-09-27'), end: new Date('2026-10-24') },
+            { id: 'Period 11', label: 'Period 11', start: new Date('2026-10-25'), end: new Date('2026-11-21') },
+            { id: 'Period 12', label: 'Period 12', start: new Date('2026-11-22'), end: new Date('2026-12-26') },
+        ];
+
+        // --- FIREBASE INIT ---
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBAeNRpRltRm0hrP5A0hFm6srEGOwaSJIg",
+            authDomain: "cardio-tracker-dec46.firebaseapp.com",
+            projectId: "cardio-tracker-dec46",
+            storageBucket: "cardio-tracker-dec46.firebasestorage.app",
+            messagingSenderId: "484278449584",
+            appId: "1:484278449584:web:ad579ed66c95d7e3065275"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        const { useState, useEffect, useMemo } = React;
+
+        // --- HELPERS ---
+        const Icon = ({ path, size = 18, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
+        );
+        const TrophyIcon = () => <Icon size={32} path={<><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10"></path><path d="M17 4v7a5 5 0 0 1-10 0V4"></path><line x1="10" y1="2" x2="10" y2="4"></line><line x1="14" y1="2" x2="14" y2="4"></line><path d="M5 9h2"></path><path d="M17 9h2"></path></>} />;
+        const TargetIcon = () => <Icon size={16} path={<><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></>} />;
+        const MedalIcon = () => <Icon size={16} path={<><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></>} />;
+
+        const POINTS = { DIAL: 1, TALK_MINUTE: 1.5, POP: 250, UNIQUE: 100, PACKET: 100, INTERVIEW: 50, REFERRAL: 100 };
+        
+        const calculateScore = (r) => {
+            if(!r) return 0;
+            return Math.floor(
+                (r.dials||0)*POINTS.DIAL + 
+                ((r.talkHours||0)*60 + (r.talkMinutes||0))*POINTS.TALK_MINUTE + 
+                (r.pop||0)*POINTS.POP + 
+                (r.uniques||0)*POINTS.UNIQUE + 
+                (r.packets||0)*POINTS.PACKET + 
+                (r.interviews||0)*POINTS.INTERVIEW + 
+                (r.referrals||0)*POINTS.REFERRAL
+            );
+        };
+
+        const getWeekId = (d = new Date()) => {
+            const date = new Date(d);
+            const day = date.getDay(); 
+            const diff = date.getDate() - day; 
+            const sunday = new Date(date.setDate(diff));
+            return `Week of ${sunday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        };
+
+        const getPeriodFromWeekId = (weekId) => {
+            if (!weekId) return null;
+            const weekDate = new Date(weekId.replace('Week of ', ''));
+            return FISCAL_PERIODS.find(p => weekDate >= p.start && weekDate <= p.end);
+        };
+
+        const TeamBadge = ({ teamId, className="" }) => {
+            const team = TEAMS.find(t => t.id === teamId) || TEAMS[0];
+            return (
+                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide border ${team.bg} ${team.text} ${team.border} ${className}`}>
+                    {team.name}
+                </span>
+            );
+        };
+
+        // --- COMPONENTS ---
+        const PopGoalWidgetTV = ({ period, actuals, goal, adjustment }) => {
+            if(!period || !goal) return null;
+            const total = actuals + adjustment;
+            const pct = Math.min(100, Math.max(0, (total / goal) * 100));
+            
+            return (
+                <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-6 shadow-2xl relative overflow-hidden flex-1 flex flex-col justify-center">
+                    <div className="absolute top-0 right-0 p-4 opacity-5">
+                        <TargetIcon size={180}/>
+                    </div>
+                    <div className="relative z-10 flex items-end justify-between mb-4">
+                        <div>
+                            <h3 className="text-emerald-400 font-bold uppercase tracking-wider text-xl mb-1">Division POP Goal</h3>
+                            <div className="text-slate-400 text-sm font-medium">{period.id} • {period.label}</div>
+                        </div>
+                        <div className="text-right">
+                             <div className="flex items-baseline gap-2 justify-end">
+                                <span className="text-6xl font-black text-white">{total.toLocaleString()}</span>
+                                <span className="text-2xl text-slate-500 font-medium">/ {goal.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="h-10 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative">
+                        <div className="absolute inset-0 z-20 flex justify-between px-[25%] pointer-events-none border-x border-transparent">
+                            <div className="w-0.5 h-full bg-slate-800"></div>
+                            <div className="w-0.5 h-full bg-slate-800"></div>
+                            <div className="w-0.5 h-full bg-slate-800"></div>
+                        </div>
+                        <div className="h-full bg-gradient-to-r from-emerald-600 to-teal-400 progress-stripe transition-all duration-1000 ease-out" style={{ width: `${pct}%` }}></div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP ---
+        function LiveTrackerDisplay() {
+            const [user, setUser] = useState(null);
+            const currentWeekId = getWeekId();
+            const [allWeeks, setAllWeeks] = useState([]);
+            const [divisionData, setDivisionData] = useState([]);
+            const [popGoalData, setPopGoalData] = useState({ goal: 0, adjustment: 0 });
+            const [periodPopActuals, setPeriodPopActuals] = useState(0);
+            
+            const selectedPeriod = useMemo(() => getPeriodFromWeekId(currentWeekId), [currentWeekId]);
+
+            // 1. Silent Auth
+            useEffect(() => {
+                auth.signInAnonymously().then(u => setUser(u.user)).catch(e => console.error(e));
+            }, []);
+
+            // 2. Fetch Week List (Required for POP Period Calculation)
+            useEffect(() => {
+                if(!user) return;
+                const unsub = db.collection('artifacts').doc(TEAMS[0].id).collection('public').doc('data').collection('weeks')
+                    .onSnapshot(snap => {
+                        const weeks = [];
+                        snap.forEach(d => weeks.push(d.id));
+                        setAllWeeks(weeks);
+                    });
+                return () => unsub();
+            }, [user]);
+
+            // 3. Live Stats Data (Current Week Only)
+            useEffect(() => {
+                if(!user) return;
+                const unsubscribers = [];
+                const tempState = {}; 
+                
+                TEAMS.forEach(team => {
+                    tempState[team.id] = { roster: [], stats: {} };
+                    // Roster Listener
+                    unsubscribers.push(
+                        db.collection('artifacts').doc(team.id).collection('public').doc('data').collection('roster')
+                        .onSnapshot(snap => {
+                            const r = []; snap.forEach(d => r.push({ id: d.id, ...d.data() }));
+                            tempState[team.id].roster = r;
+                            processLiveView();
+                        })
+                    );
+                    // Stats Listener
+                    unsubscribers.push(
+                        db.collection('artifacts').doc(team.id).collection('public').doc('data').collection('weeks').doc(currentWeekId)
+                        .onSnapshot(doc => {
+                            tempState[team.id].stats = doc.exists ? (doc.data().stats || {}) : {};
+                            processLiveView();
+                        })
+                    );
+                });
+
+                const processLiveView = () => {
+                    let combined = [];
+                    TEAMS.forEach(team => {
+                        const { roster, stats } = tempState[team.id];
+                        roster.forEach(member => {
+                            combined.push({
+                                id: `${team.id}_${member.id}`,
+                                name: member.name,
+                                teamId: team.id,
+                                ...stats[member.id]
+                            });
+                        });
+                    });
+                    // Sort by Score Descending
+                    combined.sort((a,b) => calculateScore(b) - calculateScore(a));
+                    setDivisionData(combined);
+                };
+                return () => unsubscribers.forEach(u => u());
+            }, [user, currentWeekId]);
+
+            // 4. Live POP Goal & Adjustment Sync (Admin Updates Logic)
+            useEffect(() => {
+                if(!user || !selectedPeriod) return;
+                
+                // Listener for Goal/Adjustment changes from Admin
+                const goalUnsub = db.collection('artifacts').doc('master_tracker_settings').collection('pop_goals').doc(selectedPeriod.id)
+                    .onSnapshot(doc => { if(doc.exists) setPopGoalData(doc.data()); });
+
+                // Calculate Actuals (Sum of all weeks in period)
+                const relevantWeeks = allWeeks.filter(wid => {
+                    const d = new Date(wid.replace('Week of ', ''));
+                    return d >= selectedPeriod.start && d <= selectedPeriod.end;
+                });
+
+                if(relevantWeeks.length === 0) return goalUnsub;
+
+                const popUnsubs = [];
+                const popBuffer = {}; 
+                TEAMS.forEach(team => {
+                    relevantWeeks.forEach(weekId => {
+                        const key = `${team.id}_${weekId}`;
+                        popBuffer[key] = 0; 
+                        const u = db.collection('artifacts').doc(team.id).collection('public').doc('data').collection('weeks').doc(weekId)
+                            .onSnapshot(doc => {
+                                let wPop = 0;
+                                if(doc.exists) { const stats = doc.data().stats || {}; Object.values(stats).forEach(s => wPop += (s.pop || 0)); }
+                                popBuffer[key] = wPop;
+                                setPeriodPopActuals(Object.values(popBuffer).reduce((a,b) => a+b, 0));
+                            });
+                        popUnsubs.push(u);
+                    });
+                });
+                return () => { goalUnsub(); popUnsubs.forEach(u => u()); };
+            }, [user, selectedPeriod, allWeeks]);
+
+            // 5. Team Standings Calculation
+            const teamStandings = useMemo(() => {
+                return TEAMS.map(team => {
+                    const members = divisionData.filter(d => d.teamId === team.id);
+                    const totalScore = members.reduce((sum, m) => sum + calculateScore(m), 0);
+                    const avgScore = members.length ? Math.round(totalScore / members.length) : 0;
+                    return { ...team, totalScore, avgScore, activeCount: members.length };
+                }).sort((a,b) => b.avgScore - a.avgScore);
+            }, [divisionData]);
+
+            return (
+                <div className="flex flex-col h-full gap-6">
+                    {/* 1. HEADER & POP TRACKER ROW */}
+                    <div className="flex gap-6 h-1/4 min-h-[220px]">
+                        <div className="w-1/3 bg-gradient-to-br from-blue-900 to-slate-900 rounded-2xl p-6 border border-blue-500/30 shadow-2xl flex flex-col justify-center relative overflow-hidden">
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-4 mb-2">
+                                    <div className="bg-blue-600 p-3 rounded-xl shadow-lg">
+                                        <TrophyIcon />
+                                    </div>
+                                    <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase">Master<br/>Tracker</h1>
+                                </div>
+                                <div className="text-blue-200 font-medium text-lg mt-2">{currentWeekId}</div>
+                            </div>
+                        </div>
+                        
+                        <div className="w-2/3 flex">
+                            {selectedPeriod && (
+                                <PopGoalWidgetTV 
+                                    period={selectedPeriod} 
+                                    goal={popGoalData.goal} 
+                                    adjustment={popGoalData.adjustment} 
+                                    actuals={periodPopActuals} 
+                                />
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 2. TEAM RANKINGS ROW (Fixed 4 Cols) */}
+                    <div className="grid grid-cols-4 gap-6 h-1/4 min-h-[180px]">
+                        {teamStandings.map((team, idx) => (
+                            <div key={team.id} className={`bg-slate-900 border-2 ${team.border} rounded-2xl p-5 shadow-xl relative overflow-hidden group flex flex-col justify-between`}>
+                                <div className={`absolute top-0 right-0 p-3 opacity-20 ${team.text}`}>
+                                    <MedalIcon size={80} />
+                                </div>
+                                <div className="relative z-10">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <h3 className={`font-black text-2xl uppercase ${team.text}`}>{team.name}</h3>
+                                        <span className="bg-slate-950/80 px-3 py-1 rounded-lg text-lg font-mono font-bold text-white shadow">#{idx + 1}</span>
+                                    </div>
+                                    <div className="flex items-baseline gap-2 mt-2">
+                                        <span className="text-5xl font-black text-white tracking-tight">{team.avgScore.toLocaleString()}</span>
+                                        <span className="text-sm text-slate-400 font-bold uppercase tracking-wider">Avg Pts</span>
+                                    </div>
+                                </div>
+                                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-4">
+                                     <div className={`h-full ${team.bg.replace('/10','')} opacity-80`} style={{ width: `${(team.avgScore / (teamStandings[0].avgScore || 1)) * 100}%` }}></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* 3. TOP 5 RECRUITERS LIST (Live Leaderboard) */}
+                    <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col">
+                        <div className="p-4 bg-slate-950/50 border-b border-slate-800 flex justify-between items-center">
+                            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                                <span className="text-yellow-400">★</span> Top 5 Recruiters
+                            </h2>
+                            <span className="text-slate-500 font-mono text-sm uppercase tracking-widest animate-pulse">● Live Updating</span>
+                        </div>
+                        <div className="flex-1 p-2">
+                            <table className="w-full text-left h-full">
+                                <thead>
+                                    <tr className="text-slate-400 uppercase tracking-wider text-sm border-b border-slate-800">
+                                        <th className="p-4 w-20 text-center">Rank</th>
+                                        <th className="p-4">Recruiter</th>
+                                        <th className="p-4 text-center">Dials</th>
+                                        <th className="p-4 text-center">Talk Time</th>
+                                        <th className="p-4 text-center text-emerald-400">POP</th>
+                                        <th className="p-4 text-center text-blue-400">Unique</th>
+                                        <th className="p-4 text-center text-purple-400">Packet</th>
+                                        <th className="p-4 text-right pr-8">Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {divisionData.slice(0, 5).map((row, index) => (
+                                        <tr key={row.id} className="border-b border-slate-800/50 last:border-0">
+                                            <td className="p-4 text-center">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold mx-auto ${index===0?'bg-yellow-500 text-black shadow-lg shadow-yellow-500/50':index===1?'bg-slate-300 text-slate-900':index===2?'bg-orange-600 text-white':'bg-slate-800 text-slate-500'}`}>
+                                                    {index + 1}
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="text-2xl font-bold text-white">{row.name}</div>
+                                                <div className="opacity-80 mt-1"><TeamBadge teamId={row.teamId} className="text-sm px-2 py-0.5" /></div>
+                                            </td>
+                                            <td className="p-4 text-center text-xl text-slate-400 font-medium">{row.dials || 0}</td>
+                                            <td className="p-4 text-center text-xl text-orange-400 font-mono">
+                                                {row.talkHours || 0}<span className="text-slate-600 mx-1">:</span>{(row.talkMinutes || 0).toString().padStart(2,'0')}
+                                            </td>
+                                            <td className="p-4 text-center text-2xl font-bold text-emerald-500">{row.pop || '-'}</td>
+                                            <td className="p-4 text-center text-2xl font-bold text-blue-500">{row.uniques || '-'}</td>
+                                            <td className="p-4 text-center text-2xl font-bold text-purple-500">{row.packets || '-'}</td>
+                                            <td className="p-4 text-right pr-8">
+                                                <span className="text-4xl font-black text-white">{calculateScore(row).toLocaleString()}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<LiveTrackerDisplay />);
+    </script>
+</body>
+</html>
