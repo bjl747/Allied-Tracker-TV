@@ -2,14 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Viewport optimized for 4K Resolution -->
     <meta name="viewport" content="width=3840, initial-scale=1.0, user-scalable=no">
-    <title>Allied Master Tracker - 4K TV</title>
+    <title>Allied Division Tracker</title>
     
+    <!-- REACT & TAILWIND -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -19,24 +22,32 @@
             overflow: hidden; 
             background-color: #020617; 
             cursor: none; 
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
-        /* Smooth scrolling for the table */
-        .scrolling-table::-webkit-scrollbar { display: none; }
-        .scrolling-table { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Hide Scrollbars */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
         .progress-stripe { background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent); background-size: 2rem 2rem; }
+        
+        /* Glass Effect */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
     </style>
 </head>
-<body class="text-slate-100 font-sans antialiased">
-    <div id="root" class="h-screen w-screen p-10 flex flex-col gap-8"></div>
+<body class="text-slate-100 antialiased selection:bg-blue-500 selection:text-white">
+    <div id="root" class="h-screen w-screen p-10 flex flex-col gap-6"></div>
 
     <script type="text/babel">
         // --- CONFIGURATION ---
         const TEAMS = [
-            { id: 'default-cardio-app', name: 'Cardio', color: 'red', hex: '#ef4444', bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/50' },
-            { id: 'team-beau-tracker', name: 'Team Beau', color: 'blue', hex: '#3b82f6', bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/50' },
-            { id: 'team-jerry-tracker', name: 'Team Jerry', color: 'emerald', hex: '#10b981', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/50' },
-            { id: 'default-therapy-app', name: 'Therapy', color: 'purple', hex: '#a855f7', bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/50' }
+            { id: 'default-cardio-app', name: 'Cardio', color: 'red', hex: '#ef4444', bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/50', glow: 'shadow-red-900/40' },
+            { id: 'team-beau-tracker', name: 'Team Beau', color: 'blue', hex: '#3b82f6', bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/50', glow: 'shadow-blue-900/40' },
+            { id: 'team-jerry-tracker', name: 'Team Jerry', color: 'emerald', hex: '#10b981', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/50', glow: 'shadow-emerald-900/40' },
+            { id: 'default-therapy-app', name: 'Therapy', color: 'purple', hex: '#a855f7', bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/50', glow: 'shadow-purple-900/40' }
         ];
 
         const FISCAL_PERIODS = [
@@ -68,13 +79,13 @@
 
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- ICONS (Scaled Up) ---
-        const Icon = ({ path, size = 32, className = "" }) => (
+        // --- ICONS (Scaled Down for Refinement) ---
+        const Icon = ({ path, size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
         );
-        const TrophyIcon = ({size=40}) => <Icon size={size} path={<><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10"></path><path d="M17 4v7a5 5 0 0 1-10 0V4"></path><line x1="10" y1="2" x2="10" y2="4"></line><line x1="14" y1="2" x2="14" y2="4"></line><path d="M5 9h2"></path><path d="M17 9h2"></path></>} />;
-        const TargetIcon = ({size=28}) => <Icon size={size} path={<><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></>} />;
-        
+        const TrophyIcon = ({size=32}) => <Icon size={size} path={<><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10"></path><path d="M17 4v7a5 5 0 0 1-10 0V4"></path><line x1="10" y1="2" x2="10" y2="4"></line><line x1="14" y1="2" x2="14" y2="4"></line><path d="M5 9h2"></path><path d="M17 9h2"></path></>} />;
+        const TargetIcon = ({size=20}) => <Icon size={size} path={<><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></>} />;
+
         // --- LOGIC ---
         const POINTS = { DIAL: 1, TALK_MINUTE: 1.5, POP: 250, UNIQUE: 100, PACKET: 100, INTERVIEW: 50, REFERRAL: 100 };
         const calculateScore = (r) => {
@@ -107,7 +118,7 @@
         const TeamBadge = ({ teamId, className="" }) => {
             const team = TEAMS.find(t => t.id === teamId) || TEAMS[0];
             return (
-                <span className={`px-3 py-1 rounded-md text-lg font-bold uppercase tracking-wide border ${team.bg} ${team.text} ${team.border} ${className}`}>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${team.bg} ${team.text} ${team.border} ${className}`}>
                     {team.name}
                 </span>
             );
@@ -115,65 +126,76 @@
 
         // --- COMPONENTS ---
 
-        // 4K POP Widget
-        const SlimPopWidget = ({ period, actuals, goal, adjustment }) => {
+        // Top Bar POP Widget (Horizontal)
+        const TopBarPopWidget = ({ period, actuals, goal, adjustment }) => {
             if(!period || !goal) return null;
             const total = actuals + adjustment;
             const pct = Math.min(100, Math.max(0, (total / goal) * 100));
             
             return (
-                <div className="flex-1 bg-slate-900 border border-emerald-500/30 rounded-2xl px-10 py-6 shadow-lg flex items-center gap-10 relative overflow-hidden">
-                    <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-emerald-900/10 to-transparent"></div>
-                    
-                    {/* Label Section */}
-                    <div className="flex flex-col min-w-[300px]">
-                        <div className="flex items-center gap-4 text-emerald-400 font-bold uppercase tracking-widest text-xl">
-                            <TargetIcon size={32}/> Division Goal
+                <div className="h-full glass-panel rounded-xl px-6 py-3 flex items-center gap-6 relative overflow-hidden flex-1 shadow-lg">
+                    {/* Goal Info */}
+                    <div className="flex flex-col min-w-[150px] border-r border-slate-700/50 pr-6 mr-2">
+                        <div className="flex items-center gap-2 text-emerald-400 font-bold uppercase tracking-widest text-sm">
+                            <TargetIcon size={16}/> Division Goal
                         </div>
-                        <div className="text-white text-3xl font-medium opacity-60 mt-1">{period.id}</div>
+                        <div className="text-slate-400 text-xs font-medium mt-0.5">{period.id}</div>
                     </div>
 
-                    {/* Bar Section */}
-                    <div className="flex-1 flex flex-col justify-center">
-                         <div className="flex justify-between text-2xl font-bold text-slate-400 mb-2">
-                            <span className="text-white">{total.toLocaleString()}</span>
-                            <span>{goal.toLocaleString()}</span>
+                    {/* Progress Bar Container */}
+                    <div className="flex-1 flex flex-col justify-center gap-1">
+                        <div className="flex justify-between items-end">
+                            <span className="text-xl font-bold text-white tabular-nums">{total.toLocaleString()}</span>
+                            <span className="text-sm font-bold text-slate-500 tabular-nums">Goal: {goal.toLocaleString()}</span>
                         </div>
-                        <div className="h-8 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative w-full">
-                            <div className="h-full bg-gradient-to-r from-emerald-600 to-teal-400 progress-stripe transition-all duration-1000 ease-out" style={{ width: `${pct}%` }}></div>
+                        <div className="h-4 bg-slate-950 rounded-full overflow-hidden border border-slate-700 relative w-full shadow-inner">
+                            <div className="h-full bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400 progress-stripe transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(16,185,129,0.5)]" style={{ width: `${pct}%` }}></div>
                         </div>
                     </div>
                     
-                    {/* Percent Section */}
-                    <div className="text-7xl font-black text-white w-48 text-right">
-                        {Math.round(pct)}%
+                    {/* Percentage */}
+                    <div className="flex items-baseline gap-1 pl-4 min-w-[120px] justify-end">
+                        <span className="text-5xl font-black text-white tracking-tighter shadow-black drop-shadow-lg">{Math.round(pct)}</span>
+                        <span className="text-2xl font-bold text-emerald-500">%</span>
                     </div>
                 </div>
             );
         };
 
-        // 4K Team Card
-        const SlimTeamCard = ({ team, rank, maxScore }) => {
+        // Stacked Vertical Team Card
+        const VerticalTeamCard = ({ team, rank, maxScore }) => {
+            const isLeader = rank === 1;
              return (
-                <div className={`bg-slate-900 border ${team.border} rounded-2xl p-6 shadow-lg flex flex-col justify-between relative overflow-hidden h-60`}>
-                    <div className="flex justify-between items-start z-10 relative">
-                        <div>
-                            <span className="text-xl font-bold text-slate-500 uppercase tracking-wider block mb-2">Rank #{rank}</span>
-                            <h3 className={`font-black text-5xl uppercase ${team.text} leading-none`}>{team.name}</h3>
+                <div className={`
+                    glass-panel border-l-4 ${team.border.replace('border-','border-l-')} 
+                    rounded-r-xl rounded-l-sm p-4 relative overflow-hidden flex-1 flex flex-col justify-center
+                    transition-all duration-500 ${isLeader ? 'bg-slate-800/80' : 'bg-slate-900/40'}
+                `}>
+                    <div className="flex justify-between items-center z-10 relative mb-3">
+                        <div className="flex items-center gap-3">
+                            <div className={`
+                                w-8 h-8 rounded flex items-center justify-center text-lg font-black shadow-lg
+                                ${isLeader ? 'bg-yellow-500 text-black' : 'bg-slate-800 text-slate-400'}
+                            `}>
+                                {rank}
+                            </div>
+                            <div>
+                                <h3 className={`font-black text-2xl uppercase ${team.text} tracking-tight leading-none`}>{team.name}</h3>
+                            </div>
                         </div>
                         <div className="text-right">
-                             <div className="text-6xl font-black text-white leading-none">{team.avgScore.toLocaleString()}</div>
-                             <div className="text-lg text-slate-400 uppercase font-bold mt-2">Avg Score</div>
+                             <div className="text-3xl font-black text-white leading-none tracking-tight">{team.avgScore.toLocaleString()}</div>
+                             <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mt-0.5">Avg Score</div>
                         </div>
                     </div>
                     
                     {/* Mini Bar */}
-                    <div className="w-full bg-slate-950 h-5 rounded-full overflow-hidden mt-4 z-10 relative">
-                         <div className={`h-full ${team.bg.replace('/10','')} opacity-80`} style={{ width: `${(team.avgScore / (maxScore || 1)) * 100}%` }}></div>
+                    <div className="w-full bg-slate-950/50 h-2 rounded-full overflow-hidden z-10 relative">
+                         <div className={`h-full ${team.bg.replace('/10','')} opacity-90 shadow-[0_0_10px_currentColor] ${team.text}`} style={{ width: `${(team.avgScore / (maxScore || 1)) * 100}%` }}></div>
                     </div>
                     
                     {/* Background Decor */}
-                    <div className={`absolute -bottom-8 -right-8 w-40 h-40 rounded-full ${team.bg} blur-3xl opacity-20`}></div>
+                    <div className={`absolute -right-6 -bottom-6 w-32 h-32 rounded-full ${team.bg} blur-[40px] opacity-20`}></div>
                 </div>
             );
         };
@@ -190,41 +212,26 @@
             const selectedPeriod = useMemo(() => getPeriodFromWeekId(currentWeekId), [currentWeekId]);
             const tableBodyRef = useRef(null);
 
-            // Auth
-            useEffect(() => {
-                auth.signInAnonymously().then(u => setUser(u.user)).catch(e => console.error(e));
-            }, []);
-
-            // Data Fetching
+            // Auth & Data Fetching (Preserved)
+            useEffect(() => { auth.signInAnonymously().then(u => setUser(u.user)).catch(e => console.error(e)); }, []);
             useEffect(() => {
                 if(!user) return;
-                const unsub = db.collection('artifacts').doc(TEAMS[0].id).collection('public').doc('data').collection('weeks')
-                    .onSnapshot(snap => {
-                        const weeks = []; snap.forEach(d => weeks.push(d.id)); setAllWeeks(weeks);
-                    });
+                const unsub = db.collection('artifacts').doc(TEAMS[0].id).collection('public').doc('data').collection('weeks').onSnapshot(snap => { const weeks = []; snap.forEach(d => weeks.push(d.id)); setAllWeeks(weeks); });
                 return () => unsub();
             }, [user]);
-
             useEffect(() => {
                 if(!user) return;
-                const unsubscribers = [];
-                const tempState = {}; 
+                const unsubscribers = []; const tempState = {}; 
                 TEAMS.forEach(team => {
                     tempState[team.id] = { roster: [], stats: {} };
-                    unsubscribers.push(db.collection('artifacts').doc(team.id).collection('public').doc('data').collection('roster').onSnapshot(snap => {
-                        const r = []; snap.forEach(d => r.push({ id: d.id, ...d.data() })); tempState[team.id].roster = r; processLiveView();
-                    }));
-                    unsubscribers.push(db.collection('artifacts').doc(team.id).collection('public').doc('data').collection('weeks').doc(currentWeekId).onSnapshot(doc => {
-                        tempState[team.id].stats = doc.exists ? (doc.data().stats || {}) : {}; processLiveView();
-                    }));
+                    unsubscribers.push(db.collection('artifacts').doc(team.id).collection('public').doc('data').collection('roster').onSnapshot(snap => { const r = []; snap.forEach(d => r.push({ id: d.id, ...d.data() })); tempState[team.id].roster = r; processLiveView(); }));
+                    unsubscribers.push(db.collection('artifacts').doc(team.id).collection('public').doc('data').collection('weeks').doc(currentWeekId).onSnapshot(doc => { tempState[team.id].stats = doc.exists ? (doc.data().stats || {}) : {}; processLiveView(); }));
                 });
                 const processLiveView = () => {
                     let combined = [];
                     TEAMS.forEach(team => {
                         const { roster, stats } = tempState[team.id];
-                        roster.forEach(member => {
-                            combined.push({ id: `${team.id}_${member.id}`, name: member.name, teamId: team.id, ...stats[member.id] });
-                        });
+                        roster.forEach(member => { combined.push({ id: `${team.id}_${member.id}`, name: member.name, teamId: team.id, ...stats[member.id] }); });
                     });
                     combined.sort((a,b) => calculateScore(b) - calculateScore(a));
                     setDivisionData(combined);
@@ -236,9 +243,7 @@
             useEffect(() => {
                 if(!user || !selectedPeriod) return;
                 const goalUnsub = db.collection('artifacts').doc('master_tracker_settings').collection('pop_goals').doc(selectedPeriod.id).onSnapshot(doc => { if(doc.exists) setPopGoalData(doc.data()); });
-                const relevantWeeks = allWeeks.filter(wid => {
-                    const d = new Date(wid.replace('Week of ', '')); return d >= selectedPeriod.start && d <= selectedPeriod.end;
-                });
+                const relevantWeeks = allWeeks.filter(wid => { const d = new Date(wid.replace('Week of ', '')); return d >= selectedPeriod.start && d <= selectedPeriod.end; });
                 if(relevantWeeks.length === 0) return goalUnsub;
                 const popUnsubs = []; const popBuffer = {}; 
                 TEAMS.forEach(team => {
@@ -254,16 +259,11 @@
                 return () => { goalUnsub(); popUnsubs.forEach(u => u()); };
             }, [user, selectedPeriod, allWeeks]);
 
-            // Auto Scroll Logic (Slightly faster for 4K pixels)
+            // Auto Scroll
             useEffect(() => {
                 const table = tableBodyRef.current;
                 if (!table) return;
-                
-                let scrollInterval;
-                let startTimeout;
-                let restartTimeout;
-                let bottomTimeout;
-
+                let scrollInterval, startTimeout, restartTimeout, bottomTimeout;
                 const startScrolling = () => {
                     scrollInterval = setInterval(() => {
                         if (table.scrollTop + table.clientHeight >= table.scrollHeight - 1) {
@@ -272,22 +272,11 @@
                                 table.scrollTo({ top: 0, behavior: 'smooth' });
                                 restartTimeout = setTimeout(startScrolling, 10000);
                             }, 5000);
-                        } else {
-                            table.scrollTop += 2; // Speed up slightly for 4K
-                        }
-                    }, 30); 
+                        } else { table.scrollTop += 1; } // Slower scroll for better readability at smaller font
+                    }, 40); 
                 };
-
-                if (table.scrollHeight > table.clientHeight) {
-                    startTimeout = setTimeout(startScrolling, 10000);
-                }
-
-                return () => {
-                    clearInterval(scrollInterval);
-                    clearTimeout(startTimeout);
-                    clearTimeout(restartTimeout);
-                    clearTimeout(bottomTimeout);
-                };
+                if (table.scrollHeight > table.clientHeight) { startTimeout = setTimeout(startScrolling, 10000); }
+                return () => { clearInterval(scrollInterval); clearTimeout(startTimeout); clearTimeout(restartTimeout); clearTimeout(bottomTimeout); };
             }, [divisionData]);
 
             const teamStandings = useMemo(() => {
@@ -300,22 +289,23 @@
             }, [divisionData]);
 
             return (
-                <div className="flex flex-col h-full gap-8">
-                    {/* ROW 1: HEADER + POP */}
-                    <div className="flex gap-8 h-[12vh] min-h-[200px]">
-                        <div className="w-1/4 bg-slate-900 rounded-2xl p-8 border border-slate-800 flex items-center gap-8 shadow-lg">
-                            <div className="bg-blue-600 p-4 rounded-xl shadow-lg shadow-blue-900/50">
-                                <TrophyIcon size={48} className="text-white"/>
+                <div className="flex flex-col h-full gap-6">
+                    {/* ROW 1: HEADER (More Compact, No Clock) */}
+                    <div className="flex gap-6 h-[10vh] min-h-[100px] shrink-0">
+                        {/* Title Block - Compact & Centered */}
+                        <div className="w-[20%] glass-panel rounded-xl p-4 flex items-center justify-center gap-4 shadow-lg shrink-0">
+                            <div className="bg-blue-600 p-3 rounded-lg shadow-lg shadow-blue-900/50">
+                                <TrophyIcon size={24} className="text-white"/>
                             </div>
                             <div>
-                                <h1 className="text-5xl font-black text-white italic tracking-tighter uppercase leading-none">Master<br/>Tracker</h1>
-                                <p className="text-2xl text-blue-300 font-bold mt-2">{currentWeekId}</p>
+                                <h1 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-none">Allied<br/>Division</h1>
                             </div>
                         </div>
                         
-                        <div className="w-3/4 flex">
+                        {/* POP Widget */}
+                        <div className="flex-1 flex">
                             {selectedPeriod && (
-                                <SlimPopWidget 
+                                <TopBarPopWidget 
                                     period={selectedPeriod} 
                                     goal={popGoalData.goal} 
                                     adjustment={popGoalData.adjustment} 
@@ -325,74 +315,79 @@
                         </div>
                     </div>
 
-                    {/* ROW 2: TEAM CARDS */}
-                    <div className="grid grid-cols-4 gap-8 h-[15vh] min-h-[240px]">
-                        {teamStandings.map((team, idx) => (
-                            <SlimTeamCard 
-                                key={team.id} 
-                                team={team} 
-                                rank={idx+1} 
-                                maxScore={teamStandings[0]?.avgScore}
-                            />
-                        ))}
-                    </div>
-
-                    {/* ROW 3: LEADERBOARD */}
-                    <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col relative">
-                        {/* Table Header */}
-                        <div className="bg-slate-950 border-b border-slate-800 p-4 z-20 shadow-md">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="text-slate-500 uppercase tracking-wider text-xl font-bold">
-                                        <th className="p-4 w-24 text-center">#</th>
-                                        <th className="p-4 w-[25%]">Recruiter</th>
-                                        <th className="p-4 w-[8%] text-center">Dials</th>
-                                        <th className="p-4 w-[8%] text-center">Talk</th>
-                                        <th className="p-4 w-[8%] text-center text-emerald-500">POP</th>
-                                        <th className="p-4 w-[8%] text-center text-blue-500">Uniq</th>
-                                        <th className="p-4 w-[8%] text-center text-purple-500">Pkt</th>
-                                        <th className="p-4 w-[8%] text-center text-indigo-500">Qual</th>
-                                        <th className="p-4 text-right pr-12">Score</th>
-                                    </tr>
-                                </thead>
-                            </table>
-                        </div>
-
-                        {/* Table Body */}
-                        <div className="flex-1 overflow-y-auto scrolling-table relative" ref={tableBodyRef}>
-                            <table className="w-full text-left">
-                                <tbody className="divide-y divide-slate-800/50">
-                                    {divisionData.map((row, index) => (
-                                        <tr key={row.id} className="hover:bg-slate-800/30 transition-colors odd:bg-slate-900 even:bg-slate-900/50">
-                                            <td className="p-4 w-24 text-center">
-                                                <span className={`inline-block w-12 h-12 leading-[3rem] rounded-full text-xl font-bold ${index===0?'bg-yellow-500 text-black':index===1?'bg-slate-300 text-black':index===2?'bg-orange-600 text-white':'text-slate-500 bg-slate-800'}`}>
-                                                    {index + 1}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 w-[25%]">
-                                                <div className="font-bold text-white text-3xl truncate mb-1">{row.name}</div>
-                                                <TeamBadge teamId={row.teamId} className="opacity-70 scale-100 origin-left"/>
-                                            </td>
-                                            <td className="p-4 w-[8%] text-center text-slate-400 font-medium text-2xl">{row.dials || 0}</td>
-                                            <td className="p-4 w-[8%] text-center text-orange-300 font-mono text-2xl">
-                                                {row.talkHours || 0}:{String(row.talkMinutes || 0).padStart(2,'0')}
-                                            </td>
-                                            <td className="p-4 w-[8%] text-center font-bold text-emerald-500 text-2xl">{row.pop || '-'}</td>
-                                            <td className="p-4 w-[8%] text-center font-bold text-blue-500 text-2xl">{row.uniques || '-'}</td>
-                                            <td className="p-4 w-[8%] text-center font-bold text-purple-500 text-2xl">{row.packets || '-'}</td>
-                                            <td className="p-4 w-[8%] text-center font-bold text-indigo-500 text-2xl">{row.interviews || '-'}</td>
-                                            <td className="p-4 text-right pr-12">
-                                                <span className="text-4xl font-black text-white">{calculateScore(row).toLocaleString()}</span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    <tr className="h-8"></tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    {/* ROW 2: SPLIT CONTENT */}
+                    <div className="flex-1 flex gap-6 overflow-hidden">
                         
-                        {/* Gradient Fade */}
-                        <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-slate-900 to-transparent pointer-events-none z-10"></div>
+                        {/* LEFT: LEADERBOARD (70%) */}
+                        <div className="flex-[2.5] glass-panel rounded-xl shadow-2xl overflow-hidden flex flex-col relative">
+                            {/* Table Header */}
+                            <div className="bg-slate-900/80 border-b border-slate-700 p-2 z-20 backdrop-blur-md">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="text-slate-400 uppercase tracking-wider text-sm font-bold">
+                                            <th className="p-3 w-16 text-center">#</th>
+                                            <th className="p-3 w-[28%]">Recruiter</th>
+                                            <th className="p-3 w-[9%] text-center">Dials</th>
+                                            <th className="p-3 w-[9%] text-center">Talk</th>
+                                            <th className="p-3 w-[9%] text-center text-emerald-500">POP</th>
+                                            <th className="p-3 w-[9%] text-center text-blue-500">Uniq</th>
+                                            <th className="p-3 w-[9%] text-center text-purple-500">Pkt</th>
+                                            <th className="p-3 w-[9%] text-center text-indigo-500">Qual</th>
+                                            <th className="p-3 text-right pr-6">Score</th>
+                                        </tr>
+                                    </thead>
+                                </table>
+                            </div>
+
+                            {/* Table Body */}
+                            <div className="flex-1 overflow-y-auto no-scrollbar relative" ref={tableBodyRef}>
+                                <table className="w-full text-left">
+                                    <tbody className="divide-y divide-slate-800/50">
+                                        {divisionData.map((row, index) => (
+                                            <tr key={row.id} className="hover:bg-slate-800/50 transition-colors odd:bg-slate-900/30 even:bg-transparent">
+                                                <td className="p-3 w-16 text-center">
+                                                    <span className={`inline-block w-8 h-8 leading-[2rem] rounded-lg text-sm font-black shadow-lg ${index===0?'bg-yellow-500 text-black':index===1?'bg-slate-300 text-black':index===2?'bg-orange-600 text-white':'text-slate-500 bg-slate-800'}`}>
+                                                        {index + 1}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 w-[28%]">
+                                                    <div className="font-bold text-white text-xl truncate mb-0.5">{row.name}</div>
+                                                    <TeamBadge teamId={row.teamId} className="opacity-80 origin-left"/>
+                                                </td>
+                                                <td className="p-3 w-[9%] text-center text-slate-400 font-medium text-lg">{row.dials || 0}</td>
+                                                <td className="p-3 w-[9%] text-center text-orange-300 font-mono text-lg tracking-tight">
+                                                    {row.talkHours || 0}:{String(row.talkMinutes || 0).padStart(2,'0')}
+                                                </td>
+                                                <td className="p-3 w-[9%] text-center font-bold text-emerald-500 text-lg">{row.pop || '-'}</td>
+                                                <td className="p-3 w-[9%] text-center font-bold text-blue-500 text-lg">{row.uniques || '-'}</td>
+                                                <td className="p-3 w-[9%] text-center font-bold text-purple-500 text-lg">{row.packets || '-'}</td>
+                                                <td className="p-3 w-[9%] text-center font-bold text-indigo-500 text-lg">{row.interviews || '-'}</td>
+                                                <td className="p-3 text-right pr-6">
+                                                    <span className="text-3xl font-black text-white tracking-tight">{calculateScore(row).toLocaleString()}</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        <tr className="h-8"></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {/* Gradient Fade */}
+                            <div className="absolute bottom-0 left-0 w-full h-16 bg-gradient-to-t from-[#020617] to-transparent pointer-events-none z-10"></div>
+                        </div>
+
+                        {/* RIGHT: TEAM STACK (30%) */}
+                        <div className="flex-1 flex flex-col gap-4">
+                            {teamStandings.map((team, idx) => (
+                                <VerticalTeamCard 
+                                    key={team.id} 
+                                    team={team} 
+                                    rank={idx+1} 
+                                    maxScore={teamStandings[0]?.avgScore}
+                                />
+                            ))}
+                        </div>
+
                     </div>
                 </div>
             );
